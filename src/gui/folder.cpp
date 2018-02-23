@@ -485,6 +485,8 @@ void Folder::slotWatchedPathChanged(const QString &path)
         return; // probably a spurious notification
     }
 
+    warnOnNewExcludedFolder(relativePath);
+
     emit watchedFileChangedExternally(path);
 
     // Also schedule this folder for a sync, but only after some delay:
@@ -963,6 +965,28 @@ void Folder::slotScheduleThisFolder()
 void Folder::slotNextSyncFullLocalDiscovery()
 {
     _timeSinceLastFullLocalDiscovery.invalidate();
+}
+
+void Folder::warnOnNewExcludedFolder(const QStringRef &path)
+{
+    // Note: This assumes we're getting file watcher notifications
+    // for folders only on creation and deletion.
+    QFileInfo fi(_canonicalLocalPath + path);
+    if (!fi.isDir())
+        return;
+
+    bool ok = false;
+    auto blacklist = _journal.getSelectiveSyncList(SyncJournalDb::SelectiveSyncBlackList, &ok);
+    if (!ok)
+        return;
+    if (!blacklist.contains(path + "/"))
+        return;
+
+    Logger::instance()->postOptionalGuiLog(
+        Theme::instance()->appNameGUI(),
+        tr("The folder %1 was created but was excluded from synchronization previously. "
+           "Data inside it will not be synchronized.")
+            .arg(fi.filePath()));
 }
 
 void Folder::scheduleThisFolderSoon()
