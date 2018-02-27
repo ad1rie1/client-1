@@ -314,8 +314,8 @@ private slots:
     /** Ensures that the next sync performs a full local discovery. */
     void slotNextSyncFullLocalDiscovery();
 
-    /** Warn users if they create a folder that is selective-sync excluded */
-    void warnOnNewExcludedFolder(const QStringRef &path);
+    /** Warn users if they create a file or folder that is selective-sync excluded */
+    void warnOnNewExcludedItem(const SyncJournalFileRecord &record, const QStringRef &path);
 
 private:
     bool reloadExcludes();

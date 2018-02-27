@@ -485,7 +485,7 @@ void Folder::slotWatchedPathChanged(const QString &path)
         return; // probably a spurious notification
     }
 
-    warnOnNewExcludedFolder(relativePath);
+    warnOnNewExcludedItem(record, relativePath);
 
     emit watchedFileChangedExternally(path);
 
@@ -967,12 +967,18 @@ void Folder::slotNextSyncFullLocalDiscovery()
     _timeSinceLastFullLocalDiscovery.invalidate();
 }
 
-void Folder::warnOnNewExcludedFolder(const QStringRef &path)
+void Folder::warnOnNewExcludedItem(const SyncJournalFileRecord &record, const QStringRef &path)
 {
+    // Never warn for items in the database
+    if (record.isValid())
+        return;
+
+    // Don't warn for items that no longer exist.
     // Note: This assumes we're getting file watcher notifications
-    // for folders only on creation and deletion.
+    // for folders only on creation and deletion - if we got a notification
+    // on content change that would create spurious warnings.
     QFileInfo fi(_canonicalLocalPath + path);
-    if (!fi.isDir())
+    if (!fi.exists())
         return;
 
     bool ok = false;
@@ -982,11 +988,15 @@ void Folder::warnOnNewExcludedFolder(const QStringRef &path)
     if (!blacklist.contains(path + "/"))
         return;
 
-    Logger::instance()->postOptionalGuiLog(
-        Theme::instance()->appNameGUI(),
-        tr("The folder %1 was created but was excluded from synchronization previously. "
-           "Data inside it will not be synchronized.")
-            .arg(fi.filePath()));
+    const auto message = fi.isDir()
+        ? tr("The folder %1 was created but was excluded from synchronization previously. "
+             "Data inside it will not be synchronized.")
+              .arg(fi.filePath())
+        : tr("The file %1 was created but was excluded from synchronization previously. "
+             "It will not be synchronized.")
+              .arg(fi.filePath());
+
+    Logger::instance()->postOptionalGuiLog(Theme::instance()->appNameGUI(), message);
 }
 
 void Folder::scheduleThisFolderSoon()
